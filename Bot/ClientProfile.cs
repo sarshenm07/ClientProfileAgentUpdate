@@ -46,15 +46,15 @@ public class ClientProfile : AgentApplication
         var channelId = turnContext.Activity.Conversation.Id;
         var userText = turnContext.Activity.Text;
 
-        // Start typing indicator
-        using var typingCts = new CancellationTokenSource();
-        var typingTask = SendTypingIndicatorAsync(turnContext, typingCts.Token);
-
         //Get recent chat history
         var chatHistory = await _runtimeDB.GetRecentUserChatHistoryAsync(channelId, CHAT_HISTORY_LIMIT, TimeSpan.FromMinutes(TIME_LIMIT_MINUTES));
         chatHistory.AddAssistantMessage($"ChannelID: {channelId}");
         chatHistory.AddAssistantMessage($"Current Date: {DateTime.Now}");
         chatHistory.AddUserMessage(userText);
+
+        // Start typing indicator
+        using var typingCts = new CancellationTokenSource();
+        var typingTask = SendTypingIndicatorAsync(turnContext, typingCts.Token);
 
         //Set Filter
         _sqlFilter.SetContext(turnContext, cancellationToken, _kernel);
