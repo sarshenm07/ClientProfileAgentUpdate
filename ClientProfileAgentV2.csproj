@@ -8,6 +8,8 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Agents.Authentication.Msal" Version="1.*" />
     <PackageReference Include="Microsoft.Agents.Hosting.AspNetCore" Version="1.*" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="6.0.2" />
+    <PackageReference Include="Microsoft.SemanticKernel" Version="1.60.0" />
   </ItemGroup>
 
 </Project>
