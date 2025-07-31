@@ -20,12 +20,14 @@ public class ClientProfile : AgentApplication
     private readonly Kernel _kernel;
     private readonly RuntimeDB _runtimeDB;
     private readonly Filter _sqlFilter;
+    private IConfiguration _configuration;
 
-    public ClientProfile(AgentApplicationOptions options, Kernel kernel, RuntimeDB runtimeDB, Filter filter) : base(options)
+    public ClientProfile(AgentApplicationOptions options, Kernel kernel, RuntimeDB runtimeDB, Filter filter, IConfiguration configuration) : base(options)
     {
         _kernel = kernel;
         _runtimeDB = runtimeDB;
         _sqlFilter = filter;
+        _configuration = configuration;
         OnConversationUpdate(ConversationUpdateEvents.MembersAdded, WelcomeMessageAsync);
         OnActivity(ActivityTypes.Message, OnMessageAsync);
     }
@@ -57,7 +59,7 @@ public class ClientProfile : AgentApplication
         var typingTask = SendTypingIndicatorAsync(turnContext, typingCts.Token);
 
         //Set Filter
-        _sqlFilter.SetContext(turnContext, cancellationToken, _kernel);
+        _sqlFilter.SetContext(turnContext, cancellationToken, _kernel, _runtimeDB, _configuration);
 
 
         if (!await _runtimeDB.SaveMessageAsync(channelId, $"{userText}", true, "User", string.Empty))
