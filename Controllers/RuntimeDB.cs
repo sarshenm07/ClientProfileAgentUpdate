@@ -60,6 +60,76 @@ namespace ClientProfileAgentV2.Controllers
 
         #region Database Operations
 
+        /// <summary>
+        /// Returns a single string describing schema.table, column and type for the whole DB,
+        /// using literal "\r\n" separators to match your Semantic Kernel description format.
+        /// </summary>
+        public async Task<string> GetSchemaDescriptionAsync()
+        {
+            const string sql = @"
+                   DECLARE @SchemaName sysname = NULL
+
+                    ;WITH cols AS (
+                                    SELECT
+                                        sch.name AS SchemaName,
+                                        t.name   AS TableName,
+                                        c.name   AS ColumnName,
+                                        typ.name AS TypeName,
+                                        c.max_length,
+                                        c.precision,
+                                        c.scale,
+                                        c.column_id
+                                    FROM sys.schemas sch
+                                    JOIN sys.tables  t   ON t.schema_id  = sch.schema_id
+                                    JOIN sys.columns c   ON c.object_id  = t.object_id
+                                    JOIN sys.types   typ ON typ.user_type_id = c.user_type_id
+                                    WHERE (@SchemaName IS NULL OR sch.name = @SchemaName)
+                                  ),
+                         schemas AS (
+                             SELECT DISTINCT SchemaName FROM cols
+                                    )
+                         SELECT
+                               N'Database Name: ' + DB_NAME() + N'\r\n'
+                             + N'Database Schema: '
+                             + COALESCE(
+                                 @SchemaName,
+                                 (SELECT STRING_AGG(SchemaName, N', ') FROM schemas)
+                               ) + N'\r\n'
+                             + N'Database Structure: Name of table Name Of column Type\r\n'
+                             + COALESCE((
+                                 SELECT STRING_AGG(
+                                     cols.SchemaName + N'.' + cols.TableName + N' ' + cols.ColumnName + N' ' +
+                                     cols.TypeName +
+                                     CASE
+                                         WHEN cols.TypeName IN (N'varchar',N'char',N'varbinary',N'binary') AND cols.max_length <> -1
+                                             THEN N'(' + CAST(cols.max_length AS NVARCHAR(10)) + N')'
+                                         WHEN cols.TypeName IN (N'nvarchar',N'nchar') AND cols.max_length <> -1
+                                             THEN N'(' + CAST(cols.max_length/2 AS NVARCHAR(10)) + N')' 
+                                         WHEN cols.max_length = -1 AND cols.TypeName IN (N'varchar',N'nvarchar',N'varbinary')
+                                             THEN N'(MAX)'
+                                         WHEN cols.TypeName IN (N'decimal',N'numeric')
+                                             THEN N'(' + CAST(cols.precision AS NVARCHAR(10)) + N',' + CAST(cols.scale AS NVARCHAR(10)) + N')'
+                                         ELSE N''
+                                     END,
+                                     N'\r\n'
+                                 )
+                                 FROM cols
+                               ), N'');";
+
+            try
+            {
+                using var conn = await GetOpenConnectionAsync();
+                using var cmd = new SqlCommand(sql, conn) { CommandTimeout = 120 };
+                var result = await cmd.ExecuteScalarAsync();
+                return result?.ToString() ?? string.Empty;
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"[GetSchemaDescriptionAsync] Error: {ex}");
+                return string.Empty;
+            }
+        }
+
         public async Task<string> GetLatestSystemPromptAsync()
         {
             const string query = "SELECT TOP 1 [System prompt] FROM dbo.Configuration ORDER BY Id DESC";
